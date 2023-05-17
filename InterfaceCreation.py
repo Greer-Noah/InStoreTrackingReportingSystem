@@ -289,7 +289,7 @@ def import_qb_sql():
 
         print(" -- QB Master Items file conversion to .csv complete.")
 
-        statement_headers = "CREATE TABLE QBMasterItems(Record_ID_NBR text, Items_Record_ID_NBRs text, Item_Validation_Status text, " \
+        statement_headers = "CREATE TABLE QBMasterItems(Year text, Record_ID_NBR text, Items_Record_ID_NBRs text, Item_Validation_Status text, " \
                             "Item_Arrival_Status text, Vendor_Number text, Vendor_Name text, Dept_NBR text, SBU text, UPC text, " \
                             "Item_Description text, Arrival_Month text, Max_Shipped_On_Date text, Offshore text)"
         cursor.execute(statement_headers)
@@ -375,22 +375,43 @@ def create_total_items_sql():
     cursor.execute("DROP TABLE IF EXISTS TotalItems;")
     stmt = """
             CREATE TABLE TotalItems AS
-            SELECT DISTINCT UPCDrop.EPCs,
-            itemfile.gtin,
-            itemfile.DEPT_CATG_GRP_DESC,
-            itemfile.DEPT_CATEGORY_DESC, 
-            itemfile.VENDOR_NBR,
-            itemfile.VENDOR_NAME,
-            itemfile.BRAND_FAMILY_NAME,
-            itemfile.dept_nbr
-            FROM itemfile
-            INNER JOIN UPCDrop ON UPCDrop.UPCs = itemfile.gtin
-            WHERE UPCDrop.UPCs = itemfile.gtin and dept_nbr IN ('7','9','14','17','20','22','71','72','74','87');
-    """
+	        SELECT DISTINCT UPCDrop.EPCs,
+	        itemfile.gtin,
+	        itemfile.DEPT_CATG_GRP_DESC,
+	        itemfile.DEPT_CATEGORY_DESC, 
+	        itemfile.VENDOR_NBR,
+	        itemfile.VENDOR_NAME,
+	        itemfile.BRAND_FAMILY_NAME,
+	        itemfile.dept_nbr
+	        FROM itemfile
+	        INNER JOIN UPCDrop ON UPCDrop.UPCs = itemfile.gtin
+	        WHERE UPCDrop.UPCs = itemfile.gtin and dept_nbr IN ('7','9','14','17','20','22','71','72','74','87');
+          """
     cursor.execute(stmt)
+    cursor.execute("ALTER TABLE TotalItems ADD COLUMN UPC_No_Check bigint AFTER dept_nbr;")
+    cursor.execute("UPDATE TotalItems SET UPC_No_Check = LEFT(gtin, length(gtin)-1);")
     conn.commit()
+
+    cursor.execute("DROP TABLE IF EXISTS qb_totalitems;")
+    stmt = """
+            CREATE TABLE QB_TotalItems AS SELECT 
+            t.EPCs, 
+            t.gtin, 
+            t.DEPT_CATG_GRP_DESC,
+            t.DEPT_CATEGORY_DESC, 
+            t.VENDOR_NBR,
+            t.VENDOR_NAME,
+            t.BRAND_FAMILY_NAME,
+            t.dept_nbr,
+            qb.Item_Validation_Status
+            FROM totalitems t
+            INNER JOIN QB_IVS qb
+            ON qb.UPC = t.UPC_No_Check;
+        """
+    cursor.execute(stmt)
+
     print(" -- Total Items Table creation complete.")
-    df = sql.read_sql('SELECT * FROM TotalItems', conn)
+    df = sql.read_sql('SELECT * FROM qb_totalitems', conn)
     store.set_total_items(df)
 
 
@@ -401,8 +422,22 @@ def create_oh_data_sql():
             CREATE TABLE OHData AS 
             SELECT DISTINCT gtin, ei_onhand_qty, dept_nbr, vendor_name
             FROM itemfile
-            WHERE (ei_onhand_qty > 0) AND dept_nbr IN ('7', '9', '14', '17', '20', '22', '71', '72', '74', '87');
+            WHERE dept_nbr IN ('7', '9', '14', '17', '20', '22', '71', '72', '74', '87');
     """
+    cursor.execute(stmt)
+
+    cursor.execute("ALTER TABLE OHData ADD COLUMN UPC_No_Check bigint AFTER vendor_name;")
+    cursor.execute("UPDATE OHData SET UPC_No_Check = LEFT(gtin, length(gtin)-1);")
+    conn.commit()
+
+    cursor.execute("DROP TABLE IF EXISTS QB_OHData;")
+    stmt = """
+            CREATE TABLE QB_OHData AS SELECT 
+            o.gtin, o.ei_onhand_qty, o.dept_nbr, o.VENDOR_NAME, qb.Item_Validation_Status
+            FROM OHData o
+            INNER JOIN QB_IVS qb
+            ON qb.UPC = o.UPC_No_Check;
+           """
     cursor.execute(stmt)
     conn.commit()
 
@@ -412,13 +447,13 @@ def create_oh_data_dept_sums_sql():
     cursor.execute("DROP TABLE IF EXISTS OHData_Dept_Sums;")
     stmt = """
             CREATE TABLE OHData_Dept_Sums AS 
-            SELECT OHData.dept_nbr,
-            SUM(OHData.ei_onhand_qty) AS Combined_ei_onhand_qty,
-            SUM(CASE WHEN ohdata.vendor_name LIKE "%IMPORT-%" THEN ohdata.ei_onhand_qty ELSE 0 END) AS Import_ei_onhand_qty,
-            SUM(CASE WHEN ohdata.vendor_name NOT LIKE "%IMPORT-%" THEN ohdata.ei_onhand_qty ELSE 0 END) AS Domestic_ei_onhand_qty
-            FROM OHData 
-            GROUP BY OHData.dept_nbr
-            ORDER BY OHData.dept_nbr
+            SELECT qb_ohdata.dept_nbr,
+            SUM(qb_ohdata.ei_onhand_qty) AS Combined_ei_onhand_qty,
+            SUM(CASE WHEN qb_ohdata.vendor_name LIKE "%IMPORT-%" THEN qb_ohdata.ei_onhand_qty ELSE 0 END) AS Import_ei_onhand_qty,
+            SUM(CASE WHEN qb_ohdata.vendor_name NOT LIKE "%IMPORT-%" THEN qb_ohdata.ei_onhand_qty ELSE 0 END) AS Domestic_ei_onhand_qty
+            FROM qb_ohdata 
+            GROUP BY qb_ohdata.dept_nbr
+            ORDER BY qb_ohdata.dept_nbr;
     """
     cursor.execute(stmt)
     stmt = """
@@ -440,15 +475,6 @@ def create_repl_breakdown_sql():
     global store
     print(" -- Creating REPL_GROUP_NBR_BREAKDOWN Table...")
     cursor.execute("DROP TABLE IF EXISTS REPL_GROUP_NBR_BREAKDOWN;")
-    # stmt = """
-    #         CREATE TABLE REPL_GROUP_NBR_BREAKDOWN (id INT NOT NULL primary key auto_increment,
-    #         REPL_GROUP_NBR BIGINT NOT NULL, REPL_Count int);
-    # """
-
-    # stmt = """
-    #             CREATE TABLE REPL_GROUP_NBR_BREAKDOWN (id INT NOT NULL primary key auto_increment,
-    #             REPL_GROUP_NBR BIGINT NOT NULL);
-    #     """
     stmt = """
                     CREATE TABLE REPL_GROUP_NBR_BREAKDOWN (REPL_GROUP_NBR BIGINT NOT NULL);
             """
@@ -459,12 +485,6 @@ def create_repl_breakdown_sql():
             WHERE dept_nbr IN ('7','9','14','17','20','22','71','72','74','87');
     """
     cursor.execute(stmt)
-    # stmt = """
-    #         SELECT REPL_GROUP_NBR, REPL_COUNT FROM repl_group_nbr_breakdown a
-    #         UNION (SELECT 'Total', COUNT(REPL_GROUP_NBR) FROM REPL_GROUP_NBR_BREAKDOWN)
-    #         ORDER BY REPL_COUNT DESC;
-    # """
-    # cursor.execute(stmt)
     cursor.fetchall()
     df = sql.read_sql('SELECT REPL_GROUP_NBR FROM REPL_GROUP_NBR_BREAKDOWN', conn)
     store.set_repl_nbr(df)
