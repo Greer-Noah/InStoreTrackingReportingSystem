@@ -15,7 +15,8 @@ pymysql.install_as_MySQLdb()
 import Store
 
 global store
-store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                    None, None, None, None)
 global store_list
 store_list = []
 global store_num
@@ -63,6 +64,7 @@ def decodePreparation():
 
 
 def decodeCycleCount(epc_list_df):
+    global store
     epc_list = []
     columns = epc_list_df.columns.tolist()
 
@@ -98,6 +100,27 @@ def decodeCycleCount(epc_list_df):
 
     for upc in range(len(upc_list)):
         upc_list[upc] = upc_list[upc].lstrip('0')
+
+    unique_upc_list = []
+    for i in range(len(upc_list)):
+        if upc_list[i] not in unique_upc_list:
+            unique_upc_list.append(upc_list[i])
+
+
+    unique_epcs_df = pd.DataFrame(epc_list, columns=['EPCs'])
+    store.set_UE(unique_epcs_df)
+
+    duplicate_upcs_df = pd.DataFrame(upc_list, columns=['UPCs'])
+    store.set_DU(duplicate_upcs_df)
+
+    unique_upcs_df = pd.DataFrame(unique_upc_list, columns=['UPCs'])
+    store.set_UU(unique_upcs_df)
+
+    error_epcs_df = pd.DataFrame(error_epcs, columns=['EPCs'])
+    store.set_error_EPCs(error_epcs_df)
+
+    error_messages_df = pd.DataFrame(error_upcs, columns=['Error Messages'])
+    store.set_error_messages(error_messages_df)
 
     return epc_list, upc_list
 
@@ -509,7 +532,8 @@ def reset_interface():
     print("Store List1: ", store_list)
     store_list.append(store)
     print("Store List2: ", store_list)
-    store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+    store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                        None, None, None)
     new_store_button.destroy()
     store_entry.delete(0, END)
     date_entry.delete(0, END)
@@ -724,9 +748,6 @@ def quit_app():
         print("Store List: ", store_list)
         export_weekly_report()
         generate_combined_reports(store_list)
-        # for stores in store_list:
-        #     print("-------------------------------------------------------\n{}: ".format(stores.get_store_num()))
-        #     print(stores.toString())
 
     print("Quit...")
     app.quit()
@@ -741,10 +762,12 @@ class InterfaceCreation:
         self.store_list = []
         self.store_num = None
         self.date_input = None
-        self.store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+        self.store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                                 None, None, None, None, None)
         self.folder_created = False
         global store
-        store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None)
+        store = Store.Store(None, None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                            None, None, None, None)
 
     def updateInterface(self):
         self.store_list = store_list

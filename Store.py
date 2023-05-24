@@ -14,7 +14,8 @@ from pyepc.exceptions import DecodingError
 class Store:
 
     def __init__(self, store_num, date_input, cycle, cycle_output, item_file, qb_path, matching, qb_matching,
-                 total_items, repl_nbr, expected, combined, combined_qb_matching, combined_repl):
+                 total_items, repl_nbr, expected, combined, combined_qb_matching, combined_repl, UE, DU, UU, errorEPCs,
+                 errorMessages):
         self.store_num = store_num
         self.date_input = date_input
         self.cycle = cycle
@@ -29,6 +30,11 @@ class Store:
         self.combined = combined
         self.combined_qb_matching = combined_qb_matching
         self.combined_repl = combined_repl
+        self.UE = UE
+        self.DU = DU
+        self.UU = UU
+        self.errorEPCs = errorEPCs
+        self.errorMessages = errorMessages
 
     def set_cycle(self, cycle_path):
         self.cycle = cycle_path
@@ -72,6 +78,21 @@ class Store:
     def set_date_input(self, inputted_date):
         self.date_input = inputted_date
 
+    def set_UE(self, UE):
+        self.UE = UE
+
+    def set_UU(self, UU):
+        self.UU = UU
+
+    def set_DU(self, DU):
+        self.DU = DU
+
+    def set_error_EPCs(self, errorEPCs):
+        self.errorEPCs = errorEPCs
+
+    def set_error_messages(self, errorMessages):
+        self.errorMessages = errorMessages
+
     def get_cycle(self):
         return self.cycle
 
@@ -113,6 +134,23 @@ class Store:
 
     def get_date_input(self):
         return self.date_input
+
+    def get_UE(self):
+        return self.UE
+
+    def get_UU(self):
+        return self.UU
+
+    def get_DU(self):
+        return self.DU
+
+    def get_error_EPCs(self):
+        return self.errorEPCs
+
+    def get_error_messages(self):
+        return self.errorMessages
+
+
 
     def toString(self):
         string = "Store Number: " + str(self.get_store_num()) \
