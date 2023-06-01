@@ -417,7 +417,7 @@ def create_total_items_sql():
 
     cursor.execute("DROP TABLE IF EXISTS qb_totalitems;")
     stmt = """
-            CREATE TABLE QB_TotalItems AS SELECT 
+            CREATE TABLE qb_totalitems AS SELECT 
             t.EPCs, 
             t.gtin, 
             t.DEPT_CATG_GRP_DESC,
@@ -432,6 +432,7 @@ def create_total_items_sql():
             ON qb.UPC = t.UPC_No_Check;
         """
     cursor.execute(stmt)
+    conn.commit()
 
     print(" -- Total Items Table creation complete.")
     df = sql.read_sql('SELECT * FROM qb_totalitems', conn)
@@ -468,6 +469,7 @@ def create_oh_data_sql():
 def create_oh_data_dept_sums_sql():
     global store
     cursor.execute("DROP TABLE IF EXISTS OHData_Dept_Sums;")
+
     stmt = """
             CREATE TABLE OHData_Dept_Sums AS 
             SELECT qb_ohdata.dept_nbr,
@@ -517,7 +519,7 @@ def new_store_prompt():
     global new_store_button
     new_store_button = customtkinter.CTkButton(master=main_frame, text="New Store", command=reset_interface)
     new_store_button.pack(anchor="ne", padx=10, pady=10)
-    print("New Store?")
+    print("New Store? Or press 'Quit' to quit.")
 
 
 def reset_interface():
@@ -558,7 +560,7 @@ def export_weekly_report():
     str(matching_sheet_name)
 
     print("Exporting Total Items...")
-    df = sql.read_sql('SELECT * FROM TotalItems', conn)
+    df = sql.read_sql('SELECT * FROM qb_totalitems', conn)
     store.set_total_items(df)
     total_items_sheet_name = "Total Items {}".format(store_num)
     str(total_items_sheet_name)
