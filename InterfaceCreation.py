@@ -36,7 +36,7 @@ global cursor
 def import_cycle_count():
     global store
     print("Importing Cycle Count...")
-    pop_up_title = "Select Cycle Count Data (.xlsx)"
+    pop_up_title = "Select Cycle Count Data (.txt)"
     filenames = filedialog.askopenfilenames(initialdir="/", title=pop_up_title,
                                             filetypes=(("txt files", "*.txt"), ("all files", "*.*")))
     global cycle_count_paths
@@ -444,20 +444,20 @@ def create_oh_data_sql():
     cursor.execute("DROP TABLE IF EXISTS OHData;")
     stmt = """
             CREATE TABLE OHData AS 
-            SELECT DISTINCT gtin, ei_onhand_qty, dept_nbr, vendor_name
+            SELECT DISTINCT gtin, ei_onhand_qty, dept_nbr, vendor_name, REPL_GROUP_NBR
             FROM itemfile
             WHERE dept_nbr IN ('7', '9', '14', '17', '20', '22', '71', '72', '74', '87');
     """
     cursor.execute(stmt)
 
-    cursor.execute("ALTER TABLE OHData ADD COLUMN UPC_No_Check bigint AFTER vendor_name;")
+    cursor.execute("ALTER TABLE OHData ADD COLUMN UPC_No_Check bigint AFTER REPL_GROUP_NBR;")
     cursor.execute("UPDATE OHData SET UPC_No_Check = LEFT(gtin, length(gtin)-1);")
     conn.commit()
 
     cursor.execute("DROP TABLE IF EXISTS QB_OHData;")
     stmt = """
             CREATE TABLE QB_OHData AS SELECT 
-            o.gtin, o.ei_onhand_qty, o.dept_nbr, o.VENDOR_NAME, qb.Item_Validation_Status
+            o.gtin, o.ei_onhand_qty, o.dept_nbr, o.VENDOR_NAME, o.REPL_GROUP_NBR, qb.Item_Validation_Status
             FROM OHData o
             INNER JOIN QB_IVS qb
             ON qb.UPC = o.UPC_No_Check;
