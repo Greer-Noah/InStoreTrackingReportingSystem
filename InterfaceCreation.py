@@ -312,7 +312,7 @@ def import_qb_sql():
 
         print(" -- QB Master Items file conversion to .csv complete.")
 
-        statement_headers = "CREATE TABLE QBMasterItems(Year text, Record_ID_NBR text, Items_Record_ID_NBRs text, Item_Validation_Status text, " \
+        statement_headers = "CREATE TABLE QBMasterItems(Year text, Record_ID_NBR text, Item_Validation_Status text, " \
                             "Item_Arrival_Status text, Vendor_Number text, Vendor_Name text, Dept_NBR text, SBU text, UPC text, " \
                             "Item_Description text, Arrival_Month text, Max_Shipped_On_Date text, Offshore text)"
         cursor.execute(statement_headers)
